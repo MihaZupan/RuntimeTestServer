@@ -10,6 +10,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
+using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json;
 
 namespace NetCoreServer
@@ -59,7 +60,7 @@ namespace NetCoreServer
                 Stream stream = request.Body;
                 using (var reader = new StreamReader(stream))
                 {
-                    body = await reader.ReadToEndAsync();
+                    body = await reader.ReadToEndAsync(request.HttpContext.RequestAborted);
                 }
             }
             catch (Exception ex)
@@ -73,6 +74,13 @@ namespace NetCoreServer
                 info.BodyLength = body.Length;
             }
 
+            if (HttpProtocol.IsHttp2(request.Protocol) &&
+                !request.Headers.ContainsKey(HeaderNames.ContentLength) &&
+                !request.Headers.ContainsKey(HeaderNames.TransferEncoding))
+            {
+                info.Headers.Add(HeaderNames.TransferEncoding, "chunked");
+            }
+
             info.SecureConnection = request.IsHttps;
 
             // FixMe: https://github.com/dotnet/runtime/issues/52693
@@ -81,18 +89,14 @@ namespace NetCoreServer
             return info;
         }
 
-        public static RequestInformation DeSerializeFromJson(string json)
+        private readonly JsonSerializerSettings _jsonSerializerSettings = new JsonSerializerSettings
         {
-            return (RequestInformation)JsonConvert.DeserializeObject(
-                json,
-                typeof(RequestInformation),
-                new NameValueCollectionConverter());
-
-        }
+            Converters = { new NameValueCollectionConverter() }
+        };
 
         public string SerializeToJson()
         {
-            return JsonConvert.SerializeObject(this, new NameValueCollectionConverter());
+            return JsonConvert.SerializeObject(this, _jsonSerializerSettings);
         }
 
         private RequestInformation()

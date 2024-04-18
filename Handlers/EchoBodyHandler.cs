@@ -11,7 +11,7 @@ namespace NetCoreServer
     {
         public static async Task InvokeAsync(HttpContext context)
         {
-            context.Features.Get<IHttpMaxRequestBodySizeFeature>().MaxRequestBodySize = null;
+            context.Features.Get<IHttpMaxRequestBodySizeFeature>().MaxRequestBodySize = 2L * 1024 * 1024 * 1024; // 2 GB
 
             // Report back original request method verb.
             context.Response.Headers["X-HttpRequest-Method"] = context.Request.Method;
@@ -23,7 +23,7 @@ namespace NetCoreServer
                 context.Response.Headers["X-HttpRequest-Headers-ContentLength"] = contentLength;
             }
 
-            string transferEncoding = context.Request.Headers["Transfer-Encoding"];
+            string transferEncoding = context.Request.Headers.TransferEncoding;
             if (!string.IsNullOrEmpty(transferEncoding))
             {
                 context.Response.Headers["X-HttpRequest-Headers-TransferEncoding"] = transferEncoding;
@@ -31,7 +31,7 @@ namespace NetCoreServer
 
             context.Response.StatusCode = 200;
             context.Response.ContentType = context.Request.ContentType;
-            await context.Request.Body.CopyToAsync(context.Response.Body);
+            await context.Request.Body.CopyToAsync(context.Response.Body, context.RequestAborted);
         }
     }
 }

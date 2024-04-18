@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 
@@ -14,18 +12,11 @@ namespace NetCoreServer
         public static async Task InvokeAsync(HttpContext context)
         {
             RequestInformation info = await RequestInformation.CreateAsync(context.Request);
-
             string echoJson = info.SerializeToJson();
 
-            // Compute MD5 hash to clients can verify the received data.
-            MD5 md5 = MD5.Create();
-            byte[] bytes = Encoding.ASCII.GetBytes(echoJson);
-            var hash = md5.ComputeHash(bytes);
-            string encodedHash = Convert.ToBase64String(hash);
-            context.Response.Headers["Content-MD5"] = encodedHash;
+            context.Response.Headers.ContentMD5 = Convert.ToBase64String(ContentHelper.ComputeMD5Hash(echoJson));
+            context.Response.ContentType = "text/plain";
 
-            RequestInformation newEcho = RequestInformation.DeSerializeFromJson(echoJson);
-            context.Response.ContentType = "text/plain"; //"application/json";
             await context.Response.WriteAsync(echoJson);
         }
     }

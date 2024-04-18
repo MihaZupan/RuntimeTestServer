@@ -9,17 +9,17 @@ namespace NetCoreServer
 {
     public class GZipHandler
     {
+        private const string ResponseBody = "Sending GZIP compressed";
+        private static readonly byte[] GZipBytes = ContentHelper.GetGZipBytes(ResponseBody);
+        private static readonly string ContentMD5 = Convert.ToBase64String(ContentHelper.ComputeMD5Hash(ResponseBody));
+
         public static async Task InvokeAsync(HttpContext context)
         {
-            string responseBody = "Sending GZIP compressed";
-
-            context.Response.Headers["Content-MD5"] = Convert.ToBase64String(ContentHelper.ComputeMD5Hash(responseBody));
-            context.Response.Headers["Content-Encoding"] = "gzip";
-
+            context.Response.Headers.ContentMD5 = ContentMD5;
+            context.Response.Headers.ContentEncoding = "gzip";
             context.Response.ContentType = "text/plain";
 
-            byte[] bytes = ContentHelper.GetGZipBytes(responseBody);
-            await context.Response.Body.WriteAsync(bytes);
+            await context.Response.Body.WriteAsync(GZipBytes);
         }
     }
 }

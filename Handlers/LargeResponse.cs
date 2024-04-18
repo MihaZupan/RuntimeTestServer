@@ -21,22 +21,23 @@ namespace NetCoreServer
             // Add original request method verb as a custom response header.
             context.Response.Headers["X-HttpRequest-Method"] = context.Request.Method;
 
-            var size = 1024;
+            int size = 1024;
             if (context.Request.Query.TryGetValue("size", out var value))
             {
-                size = Int32.Parse(value);
+                size = int.Parse(value);
             }
+
             context.Response.ContentType = "application/octet-stream";
             context.Response.ContentLength = size;
-            const int bufferSize = 1024 * 100;
-            var bytes = new byte[bufferSize];
-            Random.Shared.NextBytes(bytes);
-            var remaining = size;
-            while (remaining > 0)
+
+            byte[] buffer = new byte[10 * 1024];
+            Random.Shared.NextBytes(buffer);
+
+            while (size > 0)
             {
-                var send = Math.Min(remaining, bufferSize);
-                await context.Response.Body.WriteAsync(bytes, 0, send);
-                remaining -= send;
+                int toSend = Math.Min(size, buffer.Length);
+                size -= toSend;
+                await context.Response.Body.WriteAsync(buffer.AsMemory(0, toSend), context.RequestAborted);
             }
         }
     }

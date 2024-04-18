@@ -18,7 +18,7 @@ namespace NetCoreServer
             {
                 if (string.Equals(pair.Key, "X-SetCookie", StringComparison.OrdinalIgnoreCase))
                 {
-                    context.Response.Headers["Set-Cookie"] = pair.Value.ToString();
+                    context.Response.Headers.SetCookie = pair.Value.ToString();
                 }
             }
         }

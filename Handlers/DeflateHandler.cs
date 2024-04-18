@@ -9,17 +9,17 @@ namespace NetCoreServer
 {
     public class DeflateHandler
     {
+        private const string ResponseBody = "Sending DEFLATE compressed";
+        private static readonly byte[] DeflateBytes = ContentHelper.GetDeflateBytes(ResponseBody);
+        private static readonly string ContentMD5 = Convert.ToBase64String(ContentHelper.ComputeMD5Hash(ResponseBody));
+
         public static async Task InvokeAsync(HttpContext context)
         {
-            string responseBody = "Sending DEFLATE compressed";
-
-            context.Response.Headers["Content-MD5"] = Convert.ToBase64String(ContentHelper.ComputeMD5Hash(responseBody));
-            context.Response.Headers["Content-Encoding"] = "deflate";
-
+            context.Response.Headers.ContentMD5 = ContentMD5;
+            context.Response.Headers.ContentEncoding = "deflate";
             context.Response.ContentType = "text/plain";
 
-            byte[] bytes = ContentHelper.GetDeflateBytes(responseBody);
-            await context.Response.Body.WriteAsync(bytes);
+            await context.Response.Body.WriteAsync(DeflateBytes);
         }
     }
 }

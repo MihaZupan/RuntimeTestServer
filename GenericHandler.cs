@@ -1,6 +1,8 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -10,14 +12,14 @@ namespace NetCoreServer
 {
     public class GenericHandler
     {
-        // Must have constructor with this signature, otherwise exception at run time.
-        public GenericHandler(RequestDelegate next)
-        {
-            // This catch all HTTP Handler, so no need to store next.
-        }
+        private long _requestCount = 0;
+
+        public GenericHandler(RequestDelegate next) { }
 
         public async Task Invoke(HttpContext context)
         {
+            Console.WriteLine($"Request #{Interlocked.Increment(ref _requestCount)}");
+
             string path = (context.Request.Path.Value ?? "").ToLowerInvariant();
 
             await (path switch

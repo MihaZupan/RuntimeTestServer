@@ -12,8 +12,7 @@ namespace NetCoreServer
     {
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
         {
-            var collection = value as NameValueCollection;
-            if (collection == null)
+            if (value is not NameValueCollection collection)
             {
                 return;
             }
@@ -57,7 +56,7 @@ namespace NetCoreServer
             return IsTypeDerivedFromType(objectType, typeof(NameValueCollection));
         }
 
-        private bool IsTypeDerivedFromType(Type childType, Type parentType)
+        private static bool IsTypeDerivedFromType(Type childType, Type parentType)
         {
             Type testType = childType;
             while (testType != null)

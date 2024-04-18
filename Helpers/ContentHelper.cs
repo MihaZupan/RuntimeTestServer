@@ -44,10 +44,7 @@ namespace NetCoreServer
 
         public static byte[] ComputeMD5Hash(byte[] data)
         {
-            using (MD5 md5 = MD5.Create())
-            {
-                return md5.ComputeHash(data);
-            }
+            return MD5.HashData(data);
         }
     }
 }

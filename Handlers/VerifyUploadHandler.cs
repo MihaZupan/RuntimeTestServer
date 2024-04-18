@@ -14,7 +14,7 @@ namespace NetCoreServer
     {
         public static async Task InvokeAsync(HttpContext context)
         {
-            context.Features.Get<IHttpMaxRequestBodySizeFeature>().MaxRequestBodySize = null;
+            context.Features.Get<IHttpMaxRequestBodySizeFeature>().MaxRequestBodySize = 2L * 1024 * 1024 * 1024; // 2 GB
 
             // Report back original request method verb.
             context.Response.Headers["X-HttpRequest-Method"] = context.Request.Method;
@@ -26,7 +26,7 @@ namespace NetCoreServer
                 context.Response.Headers["X-HttpRequest-Headers-ContentLength"] = contentLength;
             }
 
-            string transferEncoding = context.Request.Headers["Transfer-Encoding"];
+            string transferEncoding = context.Request.Headers.TransferEncoding;
             if (!string.IsNullOrEmpty(transferEncoding))
             {
                 context.Response.Headers["X-HttpRequest-Headers-TransferEncoding"] = transferEncoding;
@@ -47,7 +47,7 @@ namespace NetCoreServer
             }
 
             // Get expected MD5 hash of request body.
-            string expectedHash = context.Request.Headers["Content-MD5"];
+            string expectedHash = context.Request.Headers.ContentMD5;
             if (string.IsNullOrEmpty(expectedHash))
             {
                 context.Response.StatusCode = 400;
@@ -72,17 +72,16 @@ namespace NetCoreServer
         {
             Stream requestStream = context.Request.Body;
             byte[] buffer = new byte[16 * 1024];
-            using (MD5 md5 = MD5.Create())
+
+            using MD5 md5 = MD5.Create();
+            int read, size = 0;
+            while ((read = await requestStream.ReadAsync(buffer, context.RequestAborted)) > 0)
             {
-                int read, size = 0;
-                while ((read = await requestStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
-                {
-                    size += read;
-                    md5.TransformBlock(buffer, 0, read, buffer, 0);
-                }
-                md5.TransformFinalBlock(buffer, 0, read);
-                return (md5.Hash, size);
+                size += read;
+                md5.TransformBlock(buffer, 0, read, buffer, 0);
             }
+            md5.TransformFinalBlock(buffer, 0, read);
+            return (md5.Hash, size);
         }
     }
 }

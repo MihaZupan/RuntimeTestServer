@@ -17,7 +17,7 @@ namespace NetCoreServer
         public static async Task InvokeAsync(HttpContext context)
         {
             QueryString queryString = context.Request.QueryString;
-            bool  replyWithPartialMessages = queryString.HasValue && queryString.Value.Contains("replyWithPartialMessages");
+            bool replyWithPartialMessages = queryString.HasValue && queryString.Value.Contains("replyWithPartialMessages");
             bool replyWithEnhancedCloseMessage = queryString.HasValue && queryString.Value.Contains("replyWithEnhancedCloseMessage");
 
             string subProtocol = context.Request.Query["subprotocol"];
@@ -52,7 +52,10 @@ namespace NetCoreServer
                     socket = await context.WebSockets.AcceptWebSocketAsync();
                 }
 
-                await ProcessWebSocketRequest(socket, replyWithPartialMessages, replyWithEnhancedCloseMessage);
+                using (socket)
+                {
+                    await ProcessWebSocketRequest(socket, replyWithPartialMessages, replyWithEnhancedCloseMessage, context.RequestAborted);
+                }
             }
             catch (Exception)
             {
@@ -63,20 +66,21 @@ namespace NetCoreServer
         private static async Task ProcessWebSocketRequest(
             WebSocket socket,
             bool replyWithPartialMessages,
-            bool replyWithEnhancedCloseMessage)
+            bool replyWithEnhancedCloseMessage,
+            CancellationToken cancellationToken)
         {
             var receiveBuffer = new byte[MaxBufferSize];
             var throwAwayBuffer = new byte[MaxBufferSize];
 
             // Stay in loop while websocket is open
-            while (socket.State == WebSocketState.Open || socket.State == WebSocketState.CloseSent)
+            while (socket.State is WebSocketState.Open or WebSocketState.CloseSent)
             {
-                var receiveResult = await socket.ReceiveAsync(new ArraySegment<byte>(receiveBuffer), CancellationToken.None);
+                var receiveResult = await socket.ReceiveAsync(new ArraySegment<byte>(receiveBuffer), cancellationToken);
                 if (receiveResult.MessageType == WebSocketMessageType.Close)
                 {
                     if (receiveResult.CloseStatus == WebSocketCloseStatus.Empty)
                     {
-                        await socket.CloseAsync(WebSocketCloseStatus.Empty, null, CancellationToken.None);
+                        await socket.CloseAsync(WebSocketCloseStatus.Empty, null, cancellationToken);
                     }
                     else
                     {
@@ -86,7 +90,7 @@ namespace NetCoreServer
                             replyWithEnhancedCloseMessage ?
                                 ("Server received: " + (int)closeStatus + " " + receiveResult.CloseStatusDescription) :
                                 receiveResult.CloseStatusDescription,
-                            CancellationToken.None);
+                            cancellationToken);
                     }
 
                     continue;
@@ -100,13 +104,13 @@ namespace NetCoreServer
                     {
                         receiveResult = await socket.ReceiveAsync(
                             new ArraySegment<byte>(receiveBuffer, offset, MaxBufferSize - offset),
-                            CancellationToken.None);
+                            cancellationToken);
                     }
                     else
                     {
                         receiveResult = await socket.ReceiveAsync(
                             new ArraySegment<byte>(throwAwayBuffer),
-                            CancellationToken.None);
+                            cancellationToken);
                     }
 
                     offset += receiveResult.Count;
@@ -118,7 +122,7 @@ namespace NetCoreServer
                     await socket.CloseAsync(
                         WebSocketCloseStatus.MessageTooBig,
                         String.Format("{0}: {1} > {2}", WebSocketCloseStatus.MessageTooBig.ToString(), offset, MaxBufferSize),
-                        CancellationToken.None);
+                        cancellationToken);
 
                     continue;
                 }
@@ -130,11 +134,11 @@ namespace NetCoreServer
                     receivedMessage = Encoding.UTF8.GetString(receiveBuffer, 0, offset);
                     if (receivedMessage == ".close")
                     {
-                        await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, receivedMessage, CancellationToken.None);
+                        await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, receivedMessage, cancellationToken);
                     }
                     else if (receivedMessage == ".shutdown")
                     {
-                        await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, receivedMessage, CancellationToken.None);
+                        await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, receivedMessage, cancellationToken);
                     }
                     else if (receivedMessage == ".abort")
                     {
@@ -153,8 +157,8 @@ namespace NetCoreServer
                             new ArraySegment<byte>(buffer, 0, message.Length),
                             WebSocketMessageType.Text,
                             true,
-                            CancellationToken.None);
-                        await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, receivedMessage, CancellationToken.None);
+                            cancellationToken);
+                        await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, receivedMessage, cancellationToken);
                     }
                     else if (socket.State == WebSocketState.Open)
                     {
@@ -172,15 +176,15 @@ namespace NetCoreServer
                             new ArraySegment<byte>(receiveBuffer, 0, offset),
                             receiveResult.MessageType,
                             !replyWithPartialMessages,
-                            CancellationToken.None);
+                            cancellationToken);
                 }
                 if (receivedMessage == ".closeafter")
                 {
-                    await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, receivedMessage, CancellationToken.None);
+                    await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, receivedMessage, cancellationToken);
                 }
                 else if (receivedMessage == ".shutdownafter")
                 {
-                    await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, receivedMessage, CancellationToken.None);
+                    await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, receivedMessage, cancellationToken);
                 }
             }
         }
