@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "NetCoreServer": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "http://localhost:58243;https://localhost:58244"
+    }
+  }
+}
