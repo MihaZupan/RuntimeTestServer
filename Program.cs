@@ -2,9 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using LettuceEncrypt;
+using Microsoft.ApplicationInsights.Extensibility.EventCounterCollector;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NetCoreServer;
 using NetCoreServer.Helpers;
@@ -14,6 +16,7 @@ using System.Net.Security;
 using System.Runtime.InteropServices;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddJsonFile("appsettings.local.json", optional: true);
 
 builder.WebHost.ConfigureKestrel(options =>
 {
@@ -56,6 +59,25 @@ if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
 
     builder.Services.AddLettuceEncrypt()
         .PersistDataToDirectory(certDir, "certpass123");
+
+    if (builder.Configuration["ApplicationInsights:ConnectionString"] is { Length: > 0 } appInsightsConnectionString)
+    {
+        builder.Services.AddApplicationInsightsTelemetry(options =>
+        {
+            options.ConnectionString = appInsightsConnectionString;
+        });
+
+        builder.Services.ConfigureTelemetryModule<EventCounterCollectionModule>((module, options) =>
+        {
+            foreach (var (eventSource, counters) in RuntimeEventCounters.EventCounters)
+            {
+                foreach (string counter in counters)
+                {
+                    module.Counters.Add(new EventCounterCollectionRequest(eventSource, counter));
+                }
+            }
+        });
+    }
 }
 
 var app = builder.Build();
