@@ -2,9 +2,6 @@
   "profiles": {
     "NetCoreServer": {
       "commandName": "Project",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      },
       "applicationUrl": "http://*:80;https://*:443"
     }
   }
