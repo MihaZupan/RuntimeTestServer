@@ -6,6 +6,7 @@ using Microsoft.ApplicationInsights.Extensibility.EventCounterCollector;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http.Timeouts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NetCoreServer;
@@ -49,6 +50,9 @@ builder.WebHost.ConfigureKestrel(options =>
 builder.Services.AddControllers()
     .AddJsonOptions(options => options.JsonSerializerOptions.WriteIndented = true);
 
+builder.Services.AddRequestTimeouts(options =>
+    options.DefaultPolicy = new RequestTimeoutPolicy { Timeout = TimeSpan.FromMinutes(1) });
+
 builder.Services.AddCors(options =>
     options.AddDefaultPolicy(policy => policy.AllowAnyOrigin()));
 
@@ -81,6 +85,8 @@ if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
 }
 
 var app = builder.Build();
+
+app.UseRequestTimeouts();
 
 app.UseCors();
 app.UseWebSockets();
