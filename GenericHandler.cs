@@ -14,11 +14,21 @@ namespace NetCoreServer
     {
         private long _requestCount = 0;
 
-        public GenericHandler(RequestDelegate next) { }
+        public GenericHandler(RequestDelegate next)
+        {
+            Task.Run(async () =>
+            {
+                while (true)
+                {
+                    Console.WriteLine($"Request count: {_requestCount}");
+                    await Task.Delay(2000);
+                }
+            });
+        }
 
         public async Task Invoke(HttpContext context)
         {
-            Console.WriteLine($"Request #{Interlocked.Increment(ref _requestCount)}");
+            Interlocked.Increment(ref _requestCount);
 
             string path = (context.Request.Path.Value ?? "").ToLowerInvariant();
 
