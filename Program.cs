@@ -31,8 +31,6 @@ builder.WebHost.ConfigureKestrel(options =>
 
         portOptions.UseHttps(options =>
         {
-            options.UseLettuceEncrypt(portOptions.ApplicationServices);
-
             options.OnAuthenticate = (connectionContext, sslOptions) =>
             {
                 if (connectionContext.Items.TryGetValue("TlsFilter.TargetHost", out object targetHostObj) &&
@@ -42,6 +40,8 @@ builder.WebHost.ConfigureKestrel(options =>
                     sslOptions.ApplicationProtocols.Remove(SslApplicationProtocol.Http2);
                 }
             };
+
+            options.UseLettuceEncrypt(portOptions.ApplicationServices);
         });
     });
 });
