@@ -12,6 +12,7 @@ namespace NetCoreServer;
 
 public sealed class EchoWebSocketHandler
 {
+    private const int MaxDataLength = 16 * 1024 * 1024; // 16 MB
     private const int MaxBufferSize = 128 * 1024;
 
     public static async Task InvokeAsync(HttpContext context)
@@ -72,10 +73,14 @@ public sealed class EchoWebSocketHandler
         var receiveBuffer = new byte[MaxBufferSize];
         var throwAwayBuffer = new byte[MaxBufferSize];
 
+        int totalBytesRead = 0;
+
         // Stay in loop while websocket is open
         while (socket.State is WebSocketState.Open or WebSocketState.CloseSent)
         {
             WebSocketReceiveResult receiveResult = await socket.ReceiveAsync(new ArraySegment<byte>(receiveBuffer), cancellationToken);
+            totalBytesRead += receiveResult.Count;
+
             if (receiveResult.MessageType == WebSocketMessageType.Close)
             {
                 if (receiveResult.CloseStatus == WebSocketCloseStatus.Empty)
@@ -98,7 +103,7 @@ public sealed class EchoWebSocketHandler
 
             // Keep reading until we get an entire message.
             int offset = receiveResult.Count;
-            while (receiveResult.EndOfMessage == false)
+            while (totalBytesRead <= MaxDataLength && receiveResult.EndOfMessage == false)
             {
                 if (offset < MaxBufferSize)
                 {
@@ -114,6 +119,13 @@ public sealed class EchoWebSocketHandler
                 }
 
                 offset += receiveResult.Count;
+                totalBytesRead += receiveResult.Count;
+            }
+
+            if (totalBytesRead > MaxDataLength)
+            {
+                await socket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Exceeded length limit.", cancellationToken);
+                return;
             }
 
             // Close socket if the message was too big.

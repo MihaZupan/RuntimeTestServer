@@ -18,8 +18,6 @@ public sealed class GenericHandler
     {
         Interlocked.Increment(ref RequestCounter);
 
-        context.Features.Get<IHttpMaxRequestBodySizeFeature>().MaxRequestBodySize = 8 * 1024 * 1024; // 8 MB
-
         string path = context.Request.Path.Value?.ToLowerInvariant();
 
         await (path switch

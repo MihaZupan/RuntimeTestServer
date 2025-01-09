@@ -50,6 +50,9 @@ builder.WebHost.ConfigureKestrel(options =>
             });
         });
     }
+
+    options.Limits.MinRequestBodyDataRate = null;
+    options.Limits.MaxRequestBodySize = 16 * 1024 * 1024; // 16 MB
 });
 
 if (OperatingSystem.IsLinux())
