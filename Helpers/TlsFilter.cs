@@ -54,11 +54,6 @@ internal static class TlsFilter
     {
         targetHost = null;
 
-        if (buffer.Length > 2048)
-        {
-            throw new InvalidOperationException("Too much data");
-        }
-
         ReadOnlySpan<byte> data = buffer.IsSingleSegment
             ? buffer.First.Span
             : buffer.ToArray();
@@ -66,6 +61,11 @@ internal static class TlsFilter
         TlsFrameHelper.TlsFrameInfo info = default;
         if (!TlsFrameHelper.TryGetFrameInfo(data, ref info))
         {
+            if (buffer.Length > 8192)
+            {
+                throw new InvalidOperationException("Too much data");
+            }
+
             return false;
         }
 
