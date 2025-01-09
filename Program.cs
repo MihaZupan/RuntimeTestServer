@@ -15,6 +15,7 @@ using System;
 using System.IO;
 using System.Net.Security;
 using System.Runtime.InteropServices;
+using Yarp.Telemetry.Consumption;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.local.json", optional: true);
@@ -92,6 +93,8 @@ if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
     }
 }
 
+builder.Services.AddMetricsConsumer<MetricsConsumer>();
+
 var app = builder.Build();
 
 app.UseRequestTimeouts();
@@ -101,3 +104,16 @@ app.UseWebSockets();
 app.UseMiddleware<GenericHandler>();
 
 app.Run();
+
+sealed class MetricsConsumer : IMetricsConsumer<SocketsMetrics>
+{
+    public void OnMetrics(SocketsMetrics previous, SocketsMetrics current)
+    {
+        Console.WriteLine(
+            $"[{DateTime.UtcNow:yyyy-MM-dd_HH-mm-ss}] " +
+            $"Requests: {GenericHandler.RequestCounter} " +
+            $"Received: {current.BytesReceived >> 20} MB. " +
+            $"Sent: {current.BytesSent >> 20} MB. " +
+            $"Incoming connections: {current.IncomingConnectionsEstablished}");
+    }
+}
