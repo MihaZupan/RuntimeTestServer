@@ -3,7 +3,6 @@
 
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Features;
 
 namespace NetCoreServer;
 
@@ -11,8 +10,6 @@ public sealed class EchoBodyHandler
 {
     public static async Task InvokeAsync(HttpContext context)
     {
-        context.Features.Get<IHttpMaxRequestBodySizeFeature>().MaxRequestBodySize = 1L * 1024 * 1024 * 1024; // 1 GB
-
         // Report back original request method verb.
         context.Response.Headers["X-HttpRequest-Method"] = context.Request.Method;
 

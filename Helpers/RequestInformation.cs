@@ -9,7 +9,6 @@ using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Primitives;
 using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json;
@@ -61,8 +60,6 @@ public sealed class RequestInformation
         string body = string.Empty;
         try
         {
-            request.HttpContext.Features.Get<IHttpMaxRequestBodySizeFeature>().MaxRequestBodySize = 64 * 1024 * 1024; // 64 MB
-
             Stream stream = request.Body;
             using (var reader = new StreamReader(stream))
             {
