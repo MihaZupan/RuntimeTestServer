@@ -109,37 +109,37 @@ app.UseMiddleware<GenericHandler>();
 
 app.Run();
 
-sealed class MetricsConsumer : IMetricsConsumer<SocketsMetrics>
+sealed class MetricsConsumer : IMetricsConsumer<SocketsMetrics>, IMetricsConsumer<NetSecurityMetrics>
 {
     private static readonly Stopwatch s_uptime = Stopwatch.StartNew();
 
     public static string LastStatus { get; private set; } = string.Empty;
 
+    private NetSecurityMetrics _lastNetSecurityMetrics;
+
     public void OnMetrics(SocketsMetrics previous, SocketsMetrics current)
     {
-        long requests = GenericHandler.RequestCounter;
-        long connections = current.IncomingConnectionsEstablished;
-
-        string requestsString =
-            requests > 1_000_000 ? $"{requests / 1_000_000d:N2} M" :
-            requests > 1_000 ? $"{requests / 1_000d:N2} k" :
-            requests.ToString();
-
-        string connectionsString =
-            connections > 1_000_000 ? $"{connections / 1_000_000d:N2} M" :
-            connections > 1_000 ? $"{connections / 1_000d:N2} k" :
-            connections.ToString();
+        static string GetString(long value) =>
+            value > 1_000_000 ? $"{value / 1_000_000d:N2} M" :
+            value > 1_000 ? $"{value / 1_000d:N2} k" :
+            value.ToString();
 
         LastStatus =
             $"""
             [{DateTime.UtcNow:yyyy-MM-dd_HH-mm-ss}]
             Uptime: {s_uptime.Elapsed}
-            Requests: {requestsString}
+            Requests: {GetString(GenericHandler.RequestCounter)}
             Received: {current.BytesReceived >> 20} MB
             Sent: {current.BytesSent >> 20} MB
-            Incoming connections: {connectionsString}
+            Incoming connections: {GetString(current.IncomingConnectionsEstablished)}
+            TLS handshakes: {GetString(_lastNetSecurityMetrics?.TotalTlsHandshakes ?? 0)}
             """;
 
         Console.WriteLine(LastStatus.ReplaceLineEndings(" "));
+    }
+
+    public void OnMetrics(NetSecurityMetrics previous, NetSecurityMetrics current)
+    {
+        _lastNetSecurityMetrics = current;
     }
 }
