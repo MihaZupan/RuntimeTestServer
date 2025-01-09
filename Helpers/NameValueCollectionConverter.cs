@@ -3,73 +3,65 @@
 
 using System;
 using System.Collections.Specialized;
-
 using Newtonsoft.Json;
 
-namespace NetCoreServer
+namespace NetCoreServer;
+
+public sealed class NameValueCollectionConverter : JsonConverter
 {
-    public class NameValueCollectionConverter : JsonConverter
+    public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
     {
-        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        if (value is not NameValueCollection collection)
         {
-            if (value is not NameValueCollection collection)
-            {
-                return;
-            }
-
-            writer.Formatting = Formatting.Indented;
-            writer.WriteStartObject();
-            foreach (var key in collection.AllKeys)
-            {
-                writer.WritePropertyName(key);
-                writer.WriteValue(collection.Get(key));
-            }
-            writer.WriteEndObject();
+            return;
         }
 
-        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        writer.Formatting = Formatting.Indented;
+        writer.WriteStartObject();
+        foreach (string key in collection.AllKeys)
         {
-            var nameValueCollection = new NameValueCollection();
-            var key = "";
-            while (reader.Read())
+            writer.WritePropertyName(key);
+            writer.WriteValue(collection.Get(key));
+        }
+        writer.WriteEndObject();
+    }
+
+    public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+    {
+        var nameValueCollection = new NameValueCollection();
+        var key = "";
+        while (reader.Read())
+        {
+            if (reader.TokenType == JsonToken.StartObject)
             {
-                if (reader.TokenType == JsonToken.StartObject)
-                {
-                    nameValueCollection = new NameValueCollection();
-                }
-                if (reader.TokenType == JsonToken.EndObject)
-                {
-                    return nameValueCollection;
-                }
-                if (reader.TokenType == JsonToken.PropertyName)
-                {
-                    key = reader.Value.ToString();
-                }
-                if (reader.TokenType == JsonToken.String)
-                    nameValueCollection.Add(key, reader.Value.ToString());
+                nameValueCollection = new NameValueCollection();
             }
-            return nameValueCollection;
-        }
-
-        public override bool CanConvert(Type objectType)
-        {
-            return IsTypeDerivedFromType(objectType, typeof(NameValueCollection));
-        }
-
-        private static bool IsTypeDerivedFromType(Type childType, Type parentType)
-        {
-            Type testType = childType;
-            while (testType != null)
+            if (reader.TokenType == JsonToken.EndObject)
             {
-                if (testType == parentType)
-                {
-                    return true;
-                }
+                return nameValueCollection;
+            }
+            if (reader.TokenType == JsonToken.PropertyName)
+            {
+                key = reader.Value.ToString();
+            }
+            if (reader.TokenType == JsonToken.String)
+                nameValueCollection.Add(key, reader.Value.ToString());
+        }
+        return nameValueCollection;
+    }
 
-                testType = testType.BaseType;
+    public override bool CanConvert(Type objectType)
+    {
+        while (objectType is not null)
+        {
+            if (objectType == typeof(NameValueCollection))
+            {
+                return true;
             }
 
-            return false;
+            objectType = objectType.BaseType;
         }
+
+        return false;
     }
 }

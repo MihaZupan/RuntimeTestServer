@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System;
 using Yarp.ReverseProxy.Utilities.Tls;
 using System.Threading;
+using System.IO.Pipelines;
 
 namespace NetCoreServer.Helpers;
 
@@ -11,16 +12,16 @@ internal static class TlsFilter
 {
     public static async Task ProcessAsync(ConnectionContext connectionContext, Func<Task> next)
     {
-        var input = connectionContext.Transport.Input;
-        var minBytesExamined = 0L;
+        PipeReader input = connectionContext.Transport.Input;
+        long minBytesExamined = 0L;
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(connectionContext.ConnectionClosed);
         cts.CancelAfter(TimeSpan.FromSeconds(15));
 
         while (true)
         {
-            var result = await input.ReadAsync(cts.Token);
-            var buffer = result.Buffer;
+            ReadResult result = await input.ReadAsync(cts.Token);
+            ReadOnlySequence<byte> buffer = result.Buffer;
 
             if (result.IsCompleted)
             {
@@ -41,7 +42,7 @@ internal static class TlsFilter
 
             connectionContext.Items["TlsFilter.TargetHost"] = targetHost;
 
-            var examined = buffer.Slice(buffer.Start, minBytesExamined).End;
+            SequencePosition examined = buffer.Slice(buffer.Start, minBytesExamined).End;
             input.AdvanceTo(buffer.Start, examined);
             break;
         }

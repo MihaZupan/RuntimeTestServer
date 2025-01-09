@@ -4,25 +4,24 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 
-namespace NetCoreServer
+namespace NetCoreServer;
+
+public sealed class StatusCodeHandler
 {
-    public class StatusCodeHandler
+    public static Task InvokeAsync(HttpContext context)
     {
-        public static Task InvokeAsync(HttpContext context)
+        string statusCodeString = context.Request.Query["statuscode"];
+        string statusDescription = context.Request.Query["statusdescription"];
+
+        if (!int.TryParse(statusCodeString, out int statusCode))
         {
-            string statusCodeString = context.Request.Query["statuscode"];
-            string statusDescription = context.Request.Query["statusdescription"];
-
-            if (!int.TryParse(statusCodeString, out int statusCode))
-            {
-                context.Response.StatusCode = 400;
-                context.Response.SetStatusDescription("Error parsing statuscode: " + statusCodeString);
-                return Task.CompletedTask;
-            }
-
-            context.Response.StatusCode = statusCode;
-            context.Response.SetStatusDescription(string.IsNullOrWhiteSpace(statusDescription) ? " " : statusDescription);
+            context.Response.StatusCode = 400;
+            context.SetStatusDescription("Error parsing statuscode: " + statusCodeString);
             return Task.CompletedTask;
         }
+
+        context.Response.StatusCode = statusCode;
+        context.SetStatusDescription(string.IsNullOrWhiteSpace(statusDescription) ? " " : statusDescription);
+        return Task.CompletedTask;
     }
 }

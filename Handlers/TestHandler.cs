@@ -5,19 +5,18 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 
-namespace NetCoreServer
+namespace NetCoreServer;
+
+public sealed class TestHandler
 {
-    public class TestHandler
+    public static async Task InvokeAsync(HttpContext context)
     {
-        public static async Task InvokeAsync(HttpContext context)
-        {
-            RequestInformation info = await RequestInformation.CreateAsync(context.Request);
-            string echoJson = info.SerializeToJson();
+        RequestInformation info = await RequestInformation.CreateAsync(context.Request);
+        string echoJson = info.SerializeToJson();
 
-            context.Response.Headers.ContentMD5 = Convert.ToBase64String(ContentHelper.ComputeMD5Hash(echoJson));
-            context.Response.ContentType = "text/plain";
+        context.Response.Headers.ContentMD5 = Convert.ToBase64String(ContentHelper.ComputeMD5Hash(echoJson));
+        context.Response.ContentType = "text/plain";
 
-            await context.Response.WriteAsync(echoJson);
-        }
+        await context.Response.WriteAsync(echoJson);
     }
 }

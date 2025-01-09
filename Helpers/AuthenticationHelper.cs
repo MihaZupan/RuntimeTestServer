@@ -5,111 +5,105 @@ using System;
 using System.Text;
 using Microsoft.AspNetCore.Http;
 
-namespace NetCoreServer
+namespace NetCoreServer;
+
+public sealed class AuthenticationHelper
 {
-    public class AuthenticationHelper
+    public static bool HandleAuthentication(HttpContext context)
     {
-        public static bool HandleAuthentication(HttpContext context)
-        {
-            string authType = context.Request.Query["auth"];
-            string user = context.Request.Query["user"];
-            string password = context.Request.Query["password"];
-            string domain = context.Request.Query["domain"];
+        string authType = context.Request.Query["auth"];
+        string user = context.Request.Query["user"];
+        string password = context.Request.Query["password"];
+        string domain = context.Request.Query["domain"];
 
-            if (string.Equals("basic", authType, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals("basic", authType, StringComparison.OrdinalIgnoreCase))
+        {
+            if (!HandleBasicAuthentication(context, user, password, domain))
             {
-                if (!HandleBasicAuthentication(context, user, password, domain))
-                {
-                    return false;
-                }
-            }
-            else if (string.Equals("Negotiate", authType, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals("NTLM", authType, StringComparison.OrdinalIgnoreCase))
-            {
-                if (!HandleChallengeResponseAuthentication(context, authType, user, password, domain))
-                {
-                    return false;
-                }
-            }
-            else if (authType != null)
-            {
-                context.Response.StatusCode = 501;
-                context.Response.SetStatusDescription("Unsupported auth type: " + authType);
                 return false;
             }
-
-            return true;
         }
-
-        private static bool HandleBasicAuthentication(HttpContext context, string user, string password, string domain)
+        else if (string.Equals("Negotiate", authType, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals("NTLM", authType, StringComparison.OrdinalIgnoreCase))
         {
-            const string WwwAuthenticateHeaderValue = "Basic realm=\"corefx-networking\"";
-
-            string authHeader = context.Request.Headers["Authorization"];
-            if (authHeader == null)
+            if (!HandleChallengeResponseAuthentication(context, authType))
             {
-                context.Response.StatusCode = 401;
-                context.Response.Headers["WWW-Authenticate"] = WwwAuthenticateHeaderValue;
                 return false;
             }
-
-            string[] split = authHeader.Split(new Char[] { ' ' });
-            if (split.Length < 2)
-            {
-                context.Response.StatusCode = 500;
-                context.Response.SetStatusDescription("Invalid Authorization header: " + authHeader); ;
-                return false;
-            }
-
-            if (!string.Equals("basic", split[0], StringComparison.OrdinalIgnoreCase))
-            {
-                context.Response.StatusCode = 500;
-                context.Response.SetStatusDescription("Unsupported auth type: " + split[0]);
-                return false;
-            }
-
-            // Decode base64 username:password.
-            byte[] bytes = Convert.FromBase64String(split[1]);
-            string credential = Encoding.ASCII.GetString(bytes);
-            string[] pair = credential.Split(new Char[] { ':' });
-
-            // Prefix "domain\" to username if domain is specified.
-            if (domain != null)
-            {
-                user = domain + "\\" + user;
-            }
-
-            if (pair.Length != 2 || pair[0] != user || pair[1] != password)
-            {
-                context.Response.StatusCode = 401;
-                context.Response.Headers["WWW-Authenticate"] = WwwAuthenticateHeaderValue;
-                return false;
-            }
-
-            // Success.
-            return true;
         }
-
-        private static bool HandleChallengeResponseAuthentication(
-            HttpContext context,
-            string authType,
-            string user,
-            string password,
-            string domain)
+        else if (authType != null)
         {
-            string authHeader = context.Request.Headers["Authorization"];
-            if (authHeader == null)
-            {
-                context.Response.StatusCode = 401;
-                context.Response.Headers["WWW-Authenticate"] = authType;
-                return false;
-            }
-
-            // We don't fully support this authentication method.
             context.Response.StatusCode = 501;
-            context.Response.SetStatusDescription("Attempt to use unsupported challenge/response auth type. " + authType + ": " + authHeader);
-
+            context.SetStatusDescription("Unsupported auth type: " + authType);
             return false;
         }
+
+        return true;
+    }
+
+    private static bool HandleBasicAuthentication(HttpContext context, string user, string password, string domain)
+    {
+        const string WwwAuthenticateHeaderValue = "Basic realm=\"corefx-networking\"";
+
+        string authHeader = context.Request.Headers.Authorization;
+        if (authHeader == null)
+        {
+            context.Response.StatusCode = 401;
+            context.Response.Headers.WWWAuthenticate = WwwAuthenticateHeaderValue;
+            return false;
+        }
+
+        string[] split = authHeader.Split(' ');
+        if (split.Length < 2)
+        {
+            context.Response.StatusCode = 500;
+            context.SetStatusDescription("Invalid Authorization header: " + authHeader); ;
+            return false;
+        }
+
+        if (!string.Equals("basic", split[0], StringComparison.OrdinalIgnoreCase))
+        {
+            context.Response.StatusCode = 500;
+            context.SetStatusDescription("Unsupported auth type: " + split[0]);
+            return false;
+        }
+
+        // Decode base64 username:password.
+        byte[] bytes = Convert.FromBase64String(split[1]);
+        string credential = Encoding.ASCII.GetString(bytes);
+        string[] pair = credential.Split(':');
+
+        // Prefix "domain\" to username if domain is specified.
+        if (domain != null)
+        {
+            user = domain + "\\" + user;
+        }
+
+        if (pair.Length != 2 || pair[0] != user || pair[1] != password)
+        {
+            context.Response.StatusCode = 401;
+            context.Response.Headers.WWWAuthenticate = WwwAuthenticateHeaderValue;
+            return false;
+        }
+
+        // Success.
+        return true;
+    }
+
+    private static bool HandleChallengeResponseAuthentication(HttpContext context, string authType)
+    {
+        string authHeader = context.Request.Headers.Authorization;
+        if (authHeader == null)
+        {
+            context.Response.StatusCode = 401;
+            context.Response.Headers.WWWAuthenticate = authType;
+            return false;
+        }
+
+        // We don't fully support this authentication method.
+        context.Response.StatusCode = 501;
+        context.SetStatusDescription($"Attempt to use unsupported challenge/response auth type. {authType}: {authHeader}");
+
+        return false;
     }
 }

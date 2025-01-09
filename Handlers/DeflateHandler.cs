@@ -5,21 +5,20 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 
-namespace NetCoreServer
+namespace NetCoreServer;
+
+public sealed class DeflateHandler
 {
-    public class DeflateHandler
+    private const string ResponseBody = "Sending DEFLATE compressed";
+    private static readonly byte[] s_deflateBytes = ContentHelper.GetDeflateBytes(ResponseBody);
+    private static readonly string s_contentMD5 = Convert.ToBase64String(ContentHelper.ComputeMD5Hash(ResponseBody));
+
+    public static async Task InvokeAsync(HttpContext context)
     {
-        private const string ResponseBody = "Sending DEFLATE compressed";
-        private static readonly byte[] DeflateBytes = ContentHelper.GetDeflateBytes(ResponseBody);
-        private static readonly string ContentMD5 = Convert.ToBase64String(ContentHelper.ComputeMD5Hash(ResponseBody));
+        context.Response.Headers.ContentMD5 = s_contentMD5;
+        context.Response.Headers.ContentEncoding = "deflate";
+        context.Response.ContentType = "text/plain";
 
-        public static async Task InvokeAsync(HttpContext context)
-        {
-            context.Response.Headers.ContentMD5 = ContentMD5;
-            context.Response.Headers.ContentEncoding = "deflate";
-            context.Response.ContentType = "text/plain";
-
-            await context.Response.Body.WriteAsync(DeflateBytes);
-        }
+        await context.Response.Body.WriteAsync(s_deflateBytes, context.RequestAborted);
     }
 }

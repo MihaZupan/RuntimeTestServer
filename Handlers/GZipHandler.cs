@@ -5,21 +5,20 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 
-namespace NetCoreServer
+namespace NetCoreServer;
+
+public sealed class GZipHandler
 {
-    public class GZipHandler
+    private const string ResponseBody = "Sending GZIP compressed";
+    private static readonly byte[] s_gZipBytes = ContentHelper.GetGZipBytes(ResponseBody);
+    private static readonly string s_contentMD5 = Convert.ToBase64String(ContentHelper.ComputeMD5Hash(ResponseBody));
+
+    public static async Task InvokeAsync(HttpContext context)
     {
-        private const string ResponseBody = "Sending GZIP compressed";
-        private static readonly byte[] GZipBytes = ContentHelper.GetGZipBytes(ResponseBody);
-        private static readonly string ContentMD5 = Convert.ToBase64String(ContentHelper.ComputeMD5Hash(ResponseBody));
+        context.Response.Headers.ContentMD5 = s_contentMD5;
+        context.Response.Headers.ContentEncoding = "gzip";
+        context.Response.ContentType = "text/plain";
 
-        public static async Task InvokeAsync(HttpContext context)
-        {
-            context.Response.Headers.ContentMD5 = ContentMD5;
-            context.Response.Headers.ContentEncoding = "gzip";
-            context.Response.ContentType = "text/plain";
-
-            await context.Response.Body.WriteAsync(GZipBytes);
-        }
+        await context.Response.Body.WriteAsync(s_gZipBytes, context.RequestAborted);
     }
 }

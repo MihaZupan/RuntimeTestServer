@@ -6,45 +6,44 @@ using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace NetCoreServer
+namespace NetCoreServer;
+
+public sealed class ContentHelper
 {
-    public class ContentHelper
+    public static byte[] GetDeflateBytes(string data)
     {
-        public static byte[] GetDeflateBytes(string data)
+        byte[] bytes = Encoding.UTF8.GetBytes(data);
+        var compressedStream = new MemoryStream();
+
+        using (var compressor = new DeflateStream(compressedStream, CompressionMode.Compress, true))
         {
-            byte[] bytes = Encoding.UTF8.GetBytes(data);
-            var compressedStream = new MemoryStream();
-
-            using (var compressor = new DeflateStream(compressedStream, CompressionMode.Compress, true))
-            {
-                compressor.Write(bytes, 0, bytes.Length);
-            }
-
-            return compressedStream.ToArray();
+            compressor.Write(bytes, 0, bytes.Length);
         }
 
-        public static byte[] GetGZipBytes(string data)
+        return compressedStream.ToArray();
+    }
+
+    public static byte[] GetGZipBytes(string data)
+    {
+        byte[] bytes = Encoding.UTF8.GetBytes(data);
+        var compressedStream = new MemoryStream();
+
+        using (var compressor = new GZipStream(compressedStream, CompressionMode.Compress, true))
         {
-            byte[] bytes = Encoding.UTF8.GetBytes(data);
-            var compressedStream = new MemoryStream();
-
-            using (var compressor = new GZipStream(compressedStream, CompressionMode.Compress, true))
-            {
-                compressor.Write(bytes, 0, bytes.Length);
-            }
-
-            return compressedStream.ToArray();
-
+            compressor.Write(bytes, 0, bytes.Length);
         }
 
-        public static byte[] ComputeMD5Hash(string data)
-        {
-            return ComputeMD5Hash(Encoding.UTF8.GetBytes(data));
-        }
+        return compressedStream.ToArray();
 
-        public static byte[] ComputeMD5Hash(byte[] data)
-        {
-            return MD5.HashData(data);
-        }
+    }
+
+    public static byte[] ComputeMD5Hash(string data)
+    {
+        return ComputeMD5Hash(Encoding.UTF8.GetBytes(data));
+    }
+
+    public static byte[] ComputeMD5Hash(byte[] data)
+    {
+        return MD5.HashData(data);
     }
 }

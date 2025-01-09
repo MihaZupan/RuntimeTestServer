@@ -4,63 +4,56 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 
-namespace NetCoreServer
+namespace NetCoreServer;
+
+public sealed class GenericHandler
 {
-    public class GenericHandler
+    private long _requestCount = 0;
+
+    public GenericHandler(RequestDelegate next)
     {
-        private long _requestCount = 0;
-
-        public GenericHandler(RequestDelegate next)
+        _ = Task.Run(async () =>
         {
-            Task.Run(async () =>
+            while (true)
             {
-                while (true)
-                {
-                    Console.WriteLine($"Request count: {_requestCount}");
-                    await Task.Delay(2000);
-                }
-            });
-        }
-
-        public async Task Invoke(HttpContext context)
-        {
-            Interlocked.Increment(ref _requestCount);
-
-            string path = (context.Request.Path.Value ?? "").ToLowerInvariant();
-
-            await (path switch
-            {
-                "/deflate.ashx" => DeflateHandler.InvokeAsync(context),
-                "/emptycontent.ashx" => Task.CompletedTask,
-                "/gzip.ashx" => GZipHandler.InvokeAsync(context),
-                "/redirect.ashx" => RedirectHandler.InvokeAsync(context),
-                "/statuscode.ashx" => StatusCodeHandler.InvokeAsync(context),
-                "/verifyupload.ashx" => VerifyUploadHandler.InvokeAsync(context),
-                "/version" => VersionHandler.InvokeAsync(context),
-                "/websocket/echowebsocket.ashx" => EchoWebSocketHandler.InvokeAsync(context),
-                "/websocket/echowebsocketheaders.ashx" => EchoWebSocketHeadersHandler.InvokeAsync(context),
-                "/test.ashx" => TestHandler.InvokeAsync(context),
-                "/large.ashx" => LargeResponseHandler.InvokeAsync(context),
-                "/echobody.ashx" => EchoBodyHandler.InvokeAsync(context),
-                _ => EchoHandler.InvokeAsync(context)
-            });
-        }
+                Console.WriteLine($"Request count: {_requestCount}");
+                await Task.Delay(2000);
+            }
+        });
     }
 
-    public static class GenericHandlerExtensions
+    public async Task Invoke(HttpContext context)
     {
-        public static IApplicationBuilder UseGenericHandler(this IApplicationBuilder builder)
-        {
-            return builder.UseMiddleware<GenericHandler>();
-        }
+        Interlocked.Increment(ref _requestCount);
 
-        public static void SetStatusDescription(this HttpResponse response, string description)
+        string path = (context.Request.Path.Value ?? "").ToLowerInvariant();
+
+        await (path switch
         {
-            response.HttpContext.Features.Get<IHttpResponseFeature>().ReasonPhrase = description;
-        }
+            "/deflate.ashx" => DeflateHandler.InvokeAsync(context),
+            "/emptycontent.ashx" => Task.CompletedTask,
+            "/gzip.ashx" => GZipHandler.InvokeAsync(context),
+            "/redirect.ashx" => RedirectHandler.InvokeAsync(context),
+            "/statuscode.ashx" => StatusCodeHandler.InvokeAsync(context),
+            "/verifyupload.ashx" => VerifyUploadHandler.InvokeAsync(context),
+            "/version" => VersionHandler.InvokeAsync(context),
+            "/websocket/echowebsocket.ashx" => EchoWebSocketHandler.InvokeAsync(context),
+            "/websocket/echowebsocketheaders.ashx" => EchoWebSocketHeadersHandler.InvokeAsync(context),
+            "/test.ashx" => TestHandler.InvokeAsync(context),
+            "/large.ashx" => LargeResponseHandler.InvokeAsync(context),
+            "/echobody.ashx" => EchoBodyHandler.InvokeAsync(context),
+            _ => EchoHandler.InvokeAsync(context)
+        });
+    }
+}
+
+public static class GenericHandlerExtensions
+{
+    public static void SetStatusDescription(this HttpContext context, string description)
+    {
+        context.Features.Get<IHttpResponseFeature>().ReasonPhrase = description;
     }
 }

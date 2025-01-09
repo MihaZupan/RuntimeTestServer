@@ -4,60 +4,59 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 
-namespace NetCoreServer
+namespace NetCoreServer;
+
+public sealed class RedirectHandler
 {
-    public class RedirectHandler
+    public static Task InvokeAsync(HttpContext context)
     {
-        public static Task InvokeAsync(HttpContext context)
+        int statusCode = 302;
+
+        string statusCodeString = context.Request.Query["statuscode"];
+        if (!string.IsNullOrEmpty(statusCodeString))
         {
-            int statusCode = 302;
-
-            string statusCodeString = context.Request.Query["statuscode"];
-            if (!string.IsNullOrEmpty(statusCodeString))
-            {
-                if (!int.TryParse(statusCodeString, out statusCode))
-                {
-                    context.Response.StatusCode = 400;
-                    context.Response.SetStatusDescription("Error parsing statuscode: " + statusCodeString);
-                    return Task.CompletedTask;
-                }
-
-                if (statusCode < 300 || statusCode > 308)
-                {
-                    context.Response.StatusCode = 400;
-                    context.Response.SetStatusDescription("Invalid redirect statuscode: " + statusCodeString);
-                    return Task.CompletedTask;
-                }
-            }
-
-            string redirectUri = context.Request.Query["uri"];
-            if (string.IsNullOrEmpty(redirectUri))
+            if (!int.TryParse(statusCodeString, out statusCode))
             {
                 context.Response.StatusCode = 400;
-                context.Response.SetStatusDescription("Missing redirection uri");
+                context.SetStatusDescription("Error parsing statuscode: " + statusCodeString);
                 return Task.CompletedTask;
             }
 
-            string hopsString = context.Request.Query["hops"];
-            int hops = 1;
-            if (!string.IsNullOrEmpty(hopsString))
+            if (statusCode < 300 || statusCode > 308)
             {
-                if (!int.TryParse(hopsString, out hops))
-                {
-                    context.Response.StatusCode = 400;
-                    context.Response.SetStatusDescription("Error parsing hops: " + hopsString);
-                    return Task.CompletedTask;
-                }
+                context.Response.StatusCode = 400;
+                context.SetStatusDescription("Invalid redirect statuscode: " + statusCodeString);
+                return Task.CompletedTask;
             }
+        }
 
-            RequestHelper.AddResponseCookies(context);
-
-            context.Response.Headers.Location = hops <= 1
-                ? redirectUri
-                : $"/Redirect.ashx?uri={redirectUri}&hops={hops - 1}";
-
-            context.Response.StatusCode = statusCode;
+        string redirectUri = context.Request.Query["uri"];
+        if (string.IsNullOrEmpty(redirectUri))
+        {
+            context.Response.StatusCode = 400;
+            context.SetStatusDescription("Missing redirection uri");
             return Task.CompletedTask;
         }
+
+        string hopsString = context.Request.Query["hops"];
+        int hops = 1;
+        if (!string.IsNullOrEmpty(hopsString))
+        {
+            if (!int.TryParse(hopsString, out hops))
+            {
+                context.Response.StatusCode = 400;
+                context.SetStatusDescription("Error parsing hops: " + hopsString);
+                return Task.CompletedTask;
+            }
+        }
+
+        RequestHelper.AddResponseCookies(context);
+
+        context.Response.Headers.Location = hops <= 1
+            ? redirectUri
+            : $"/Redirect.ashx?uri={redirectUri}&hops={hops - 1}";
+
+        context.Response.StatusCode = statusCode;
+        return Task.CompletedTask;
     }
 }

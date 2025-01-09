@@ -5,40 +5,39 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 
-namespace NetCoreServer
+namespace NetCoreServer;
+
+public sealed class LargeResponseHandler
 {
-    public class LargeResponseHandler
+    public static async Task InvokeAsync(HttpContext context)
     {
-        public static async Task InvokeAsync(HttpContext context)
+        RequestHelper.AddResponseCookies(context);
+
+        if (!AuthenticationHelper.HandleAuthentication(context))
         {
-            RequestHelper.AddResponseCookies(context);
+            return;
+        }
 
-            if (!AuthenticationHelper.HandleAuthentication(context))
-            {
-                return;
-            }
+        // Add original request method verb as a custom response header.
+        context.Response.Headers["X-HttpRequest-Method"] = context.Request.Method;
 
-            // Add original request method verb as a custom response header.
-            context.Response.Headers["X-HttpRequest-Method"] = context.Request.Method;
+        int size = 1024;
+        if (context.Request.Query.TryGetValue("size", out var value))
+        {
+            size = int.Parse(value);
+        }
 
-            int size = 1024;
-            if (context.Request.Query.TryGetValue("size", out var value))
-            {
-                size = int.Parse(value);
-            }
+        context.Response.ContentType = "application/octet-stream";
+        context.Response.ContentLength = size;
 
-            context.Response.ContentType = "application/octet-stream";
-            context.Response.ContentLength = size;
+        byte[] buffer = new byte[10 * 1024];
+        Random.Shared.NextBytes(buffer);
 
-            byte[] buffer = new byte[10 * 1024];
-            Random.Shared.NextBytes(buffer);
-
-            while (size > 0)
-            {
-                int toSend = Math.Min(size, buffer.Length);
-                size -= toSend;
-                await context.Response.Body.WriteAsync(buffer.AsMemory(0, toSend), context.RequestAborted);
-            }
+        while (size > 0)
+        {
+            int toSend = Math.Min(size, buffer.Length);
+            size -= toSend;
+            await context.Response.Body.WriteAsync(buffer.AsMemory(0, toSend), context.RequestAborted);
         }
     }
 }

@@ -23,29 +23,37 @@ builder.WebHost.ConfigureKestrel(options =>
 {
     options.ListenAnyIP(80);
 
-    options.ListenAnyIP(443, portOptions =>
+    if (OperatingSystem.IsLinux())
     {
-        portOptions.Use(async (connectionContext, next) =>
+        options.ListenAnyIP(443, portOptions =>
         {
-            await TlsFilter.ProcessAsync(connectionContext, next);
-        });
-
-        portOptions.UseHttps(options =>
-        {
-            options.OnAuthenticate = (connectionContext, sslOptions) =>
+            portOptions.Use(async (connectionContext, next) =>
             {
-                if (connectionContext.Items.TryGetValue("TlsFilter.TargetHost", out object targetHostObj) &&
-                    targetHostObj is string targetHost &&
-                    targetHost.Contains("http11", StringComparison.OrdinalIgnoreCase))
-                {
-                    sslOptions.ApplicationProtocols.Remove(SslApplicationProtocol.Http2);
-                }
-            };
+                await TlsFilter.ProcessAsync(connectionContext, next);
+            });
 
-            options.UseLettuceEncrypt(portOptions.ApplicationServices);
+            portOptions.UseHttps(options =>
+            {
+                options.OnAuthenticate = (connectionContext, sslOptions) =>
+                {
+                    if (connectionContext.Items.TryGetValue("TlsFilter.TargetHost", out object targetHostObj) &&
+                        targetHostObj is string targetHost &&
+                        targetHost.Contains("http11", StringComparison.OrdinalIgnoreCase))
+                    {
+                        sslOptions.ApplicationProtocols.Remove(SslApplicationProtocol.Http2);
+                    }
+                };
+
+                options.UseLettuceEncrypt(portOptions.ApplicationServices);
+            });
         });
-    });
+    }
 });
+
+if (OperatingSystem.IsLinux())
+{
+    builder.Services.AddLettuceEncrypt();
+}
 
 builder.Services.AddControllers()
     .AddJsonOptions(options => options.JsonSerializerOptions.WriteIndented = true);
@@ -90,6 +98,6 @@ app.UseRequestTimeouts();
 
 app.UseCors();
 app.UseWebSockets();
-app.UseGenericHandler();
+app.UseMiddleware<GenericHandler>();
 
 app.Run();
