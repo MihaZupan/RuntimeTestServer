@@ -36,6 +36,7 @@ public sealed class GenericHandler
             "/test.ashx" => TestHandler.InvokeAsync(context),
             "/large.ashx" => LargeResponseHandler.InvokeAsync(context),
             "/echobody.ashx" => EchoBodyHandler.InvokeAsync(context),
+            "/stats" => context.Response.WriteAsync(MetricsConsumer.LastStatus, context.RequestAborted),
             _ => EchoHandler.InvokeAsync(context)
         });
     }

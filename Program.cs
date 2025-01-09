@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NetCoreServer;
 using NetCoreServer.Helpers;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Net.Security;
 using System.Runtime.InteropServices;
@@ -107,13 +108,35 @@ app.Run();
 
 sealed class MetricsConsumer : IMetricsConsumer<SocketsMetrics>
 {
+    private static readonly Stopwatch s_uptime = Stopwatch.StartNew();
+
+    public static string LastStatus { get; private set; } = string.Empty;
+
     public void OnMetrics(SocketsMetrics previous, SocketsMetrics current)
     {
-        Console.WriteLine(
-            $"[{DateTime.UtcNow:yyyy-MM-dd_HH-mm-ss}] " +
-            $"Requests: {GenericHandler.RequestCounter} " +
-            $"Received: {current.BytesReceived >> 20} MB. " +
-            $"Sent: {current.BytesSent >> 20} MB. " +
-            $"Incoming connections: {current.IncomingConnectionsEstablished}");
+        long requests = GenericHandler.RequestCounter;
+        long connections = current.IncomingConnectionsEstablished;
+
+        string requestsString =
+            requests > 1_000_000 ? $"{requests / 1_000_000d:N2} M" :
+            requests > 1_000 ? $"{requests / 1_000d:N2} k" :
+            requests.ToString();
+
+        string connectionsString =
+            connections > 1_000_000 ? $"{connections / 1_000_000d:N2} M" :
+            connections > 1_000 ? $"{connections / 1_000d:N2} k" :
+            connections.ToString();
+
+        LastStatus =
+            $"""
+            [{DateTime.UtcNow:yyyy-MM-dd_HH-mm-ss}]
+            Uptime: {s_uptime.Elapsed}
+            Requests: {requestsString}
+            Received: {current.BytesReceived >> 20} MB
+            Sent: {current.BytesSent >> 20} MB
+            Incoming connections: {connectionsString}
+            """;
+
+        Console.WriteLine(LastStatus.ReplaceLineEndings(" "));
     }
 }
